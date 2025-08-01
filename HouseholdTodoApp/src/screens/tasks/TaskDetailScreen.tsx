@@ -24,8 +24,8 @@ const TaskDetailScreen = () => {
   const { taskId } = route.params as RouteParams;
   
   const [task, setTask] = useState<Task | null>(null);
-  const [_isLoading, setIsLoading] = useState(true);
-  const [_householdMembers, setHouseholdMembers] = useState<User[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [householdMembers, setHouseholdMembers] = useState<User[]>([]);
 
   useEffect(() => {
     loadTaskDetails();

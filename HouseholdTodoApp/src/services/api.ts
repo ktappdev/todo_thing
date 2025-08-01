@@ -1,4 +1,5 @@
 import axios, { AxiosInstance } from 'axios';
+import { storage } from '../utils/storage';
 import { Household, User, Task, CreateHouseholdRequest, JoinHouseholdRequest, CreateTaskRequest, UpdateTaskRequest, AssignTaskRequest, ToggleTaskRequest } from '../types';
 
 const API_BASE_URL = 'http://localhost:8080';
@@ -14,6 +15,21 @@ class ApiService {
       },
     });
 
+    // Add request interceptor to include JWT token
+    this.api.interceptors.request.use(
+      async (config) => {
+        const token = await storage.getToken();
+        if (token) {
+          config.headers = {
+            ...config.headers,
+            Authorization: `Bearer ${token}`,
+          } as any;
+        }
+        return config;
+      },
+      (error) => Promise.reject(error)
+    );
+
     // Add response interceptor for error handling
     this.api.interceptors.response.use(
       (response) => response,
@@ -27,7 +43,11 @@ class ApiService {
   // Household API
   async createHousehold(data: CreateHouseholdRequest): Promise<Household> {
     const response = await this.api.post('/households', data);
-    return response.data;
+    const { token, household } = response.data;
+    if (token) {
+      await storage.saveToken(token);
+    }
+    return household;
   }
 
   async getHouseholdByCode(code: string): Promise<Household> {
@@ -37,7 +57,11 @@ class ApiService {
 
   async joinHousehold(code: string, data: JoinHouseholdRequest): Promise<User> {
     const response = await this.api.post(`/households/code/${code}/join`, data);
-    return response.data;
+    const { token, user } = response.data;
+    if (token) {
+      await storage.saveToken(token);
+    }
+    return user;
   }
 
   async getHouseholdUsers(householdId: string): Promise<User[]> {

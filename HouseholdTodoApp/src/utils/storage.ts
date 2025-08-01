@@ -5,6 +5,7 @@ const STORAGE_KEYS = {
   USER: 'household_todo_user',
   HOUSEHOLD: 'household_todo_household',
   DEVICE_ID: 'household_todo_device_id',
+  AUTH_TOKEN: 'household_todo_auth_token',
 };
 
 export const storage = {
@@ -81,12 +82,39 @@ export const storage = {
     }
   },
 
+  // Auth token storage
+  async saveToken(token: string): Promise<void> {
+    try {
+      await AsyncStorage.setItem(STORAGE_KEYS.AUTH_TOKEN, token);
+    } catch (error) {
+      console.error('Error saving auth token to storage:', error);
+    }
+  },
+
+  async getToken(): Promise<string | null> {
+    try {
+      return await AsyncStorage.getItem(STORAGE_KEYS.AUTH_TOKEN);
+    } catch (error) {
+      console.error('Error getting auth token from storage:', error);
+      return null;
+    }
+  },
+
+  async removeToken(): Promise<void> {
+    try {
+      await AsyncStorage.removeItem(STORAGE_KEYS.AUTH_TOKEN);
+    } catch (error) {
+      console.error('Error removing auth token from storage:', error);
+    }
+  },
+
   // Clear all data
   async clearAll(): Promise<void> {
     try {
       await AsyncStorage.multiRemove([
         STORAGE_KEYS.USER,
         STORAGE_KEYS.HOUSEHOLD,
+        STORAGE_KEYS.AUTH_TOKEN,
         // Keep device ID as it should persist
       ]);
     } catch (error) {
