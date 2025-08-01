@@ -20,10 +20,15 @@ class ApiService {
       async (config) => {
         const token = await storage.getToken();
         if (token) {
-          config.headers = {
-            ...config.headers,
-            Authorization: `Bearer ${token}`,
-          } as any;
+          // Ensure we preserve existing headers object without overwriting (important for React Native)
+          if (!config.headers) {
+            config.headers = {} as any;
+          }
+          (config.headers as Record<string, string>).Authorization = `Bearer ${token}`;
+          if (__DEV__) {
+            // eslint-disable-next-line no-console
+            console.log('Adding Authorization header', (config.headers as any).Authorization);
+          }
         }
         return config;
       },

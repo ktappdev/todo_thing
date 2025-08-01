@@ -10,10 +10,10 @@ import (
 type TaskCategory string
 
 const (
-	Chores    TaskCategory = "CHORES"
-	Shopping  TaskCategory = "SHOPPING"
-	Work      TaskCategory = "WORK"
-	General   TaskCategory = "GENERAL"
+	Chores   TaskCategory = "CHORES"
+	Shopping TaskCategory = "SHOPPING"
+	Work     TaskCategory = "WORK"
+	General  TaskCategory = "GENERAL"
 )
 
 type Task struct {
@@ -29,11 +29,11 @@ type Task struct {
 	UpdatedAt   time.Time    `json:"updatedAt"`
 	CompletedAt *time.Time   `json:"completedAt"`
 	CompletedBy *string      `json:"completedBy"`
-	
+
 	// Relationships
-	Creator         User              `json:"creator" gorm:"foreignKey:CreatorID"`
-	Household       Household         `json:"household" gorm:"foreignKey:HouseholdID"`
-	Assignments     []TaskAssignment  `json:"assignments" gorm:"foreignKey:TaskID"`
+	Creator     User             `json:"creator" gorm:"foreignKey:CreatorID"`
+	Household   Household        `json:"household" gorm:"foreignKey:HouseholdID"`
+	Assignments []TaskAssignment `json:"assignments" gorm:"foreignKey:TaskID"`
 }
 
 func (t *Task) BeforeCreate(tx *gorm.DB) (err error) {

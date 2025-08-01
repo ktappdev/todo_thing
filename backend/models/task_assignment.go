@@ -8,11 +8,11 @@ import (
 )
 
 type TaskAssignment struct {
-	ID     string    `json:"id" gorm:"primarykey"`
-	TaskID string    `json:"taskId" gorm:"not null"`
-	UserID string    `json:"userId" gorm:"not null"`
+	ID        string    `json:"id" gorm:"primarykey"`
+	TaskID    string    `json:"taskId" gorm:"not null"`
+	UserID    string    `json:"userId" gorm:"not null"`
 	CreatedAt time.Time `json:"createdAt"`
-	
+
 	// Relationships
 	Task Task `json:"task" gorm:"foreignKey:TaskID"`
 	User User `json:"user" gorm:"foreignKey:UserID"`

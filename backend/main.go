@@ -2,7 +2,9 @@ package main
 
 import (
 	"log"
+	"net"
 	"net/http"
+	"strings"
 
 	"household-todo-backend/config"
 	"household-todo-backend/controllers"
@@ -91,6 +93,23 @@ func main() {
 	})
 
 	// Start server
-	log.Println("Server running on port 8080")
-	r.Run(":8080")
+	ifaces, _ := net.Interfaces()
+	for _, iface := range ifaces {
+		addrs, _ := iface.Addrs()
+		for _, addr := range addrs {
+			var ip string
+			switch v := addr.(type) {
+			case *net.IPNet:
+				ip = v.IP.String()
+			case *net.IPAddr:
+				ip = v.IP.String()
+			}
+			if strings.HasPrefix(ip, "127.") || strings.Contains(ip, ":") || ip == "" {
+				continue
+			}
+			log.Printf("Listening on http://%s:8080", ip)
+		}
+	}
+	log.Println("Listening on http://0.0.0.0:8080 (all interfaces)")
+	r.Run("0.0.0.0:8080")
 }
