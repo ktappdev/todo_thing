@@ -1,0 +1,24 @@
+{
+  "expo": {
+    "name": "HouseholdTodoApp",
+    "slug": "householdtodoapp",
+    "scheme": "householdtodoapp",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "assetBundlePatterns": ["**/*"],
+    "newArchEnabled": true,
+    "android": { "package": "com.anonymous.householdtodoapp" },
+    "ios": { "bundleIdentifier": "com.anonymous.householdtodoapp" },
+    "runtimeVersion": "1.0.0",
+    "jsEngine": "hermes",
+    "plugins": [],
+    "web": {
+      "favicon": "./assets/favicon.png"
+    }
+  }
+}

@@ -1,0 +1,4 @@
+.DS_Store
+household_todo.db
+vendor/
+.crush/
