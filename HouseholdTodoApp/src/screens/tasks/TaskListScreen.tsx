@@ -11,7 +11,7 @@ import {
   Modal,
 } from 'react-native';
 import { FAB } from 'react-native-paper';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { TabParamList } from '../../navigation/TabNavigator';
 import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 
@@ -49,6 +49,15 @@ const TaskListScreen = () => {
   const onRefresh = async () => {
     await refetch();
   };
+
+  // Refetch when screen comes into focus
+  useFocusEffect(
+    React.useCallback(() => {
+      if (householdId) {
+        refetch();
+      }
+    }, [householdId, refetch])
+  );
 
   const toggleTaskCompletion = async (_taskId: string) => {
     // handled in other screen; kept for parity
