@@ -1,0 +1,236 @@
+WEBSOCKET BACKEND REQUIREMENTS
+==============================
+
+Dear Backend Team,
+
+I've implemented WebSocket support on the React Native frontend for real-time updates across devices. Here's exactly what I need from the backend to make this work:
+
+## 1. WebSocket Server Setup
+
+### Technology Stack
+- Use Socket.IO (Node.js) or equivalent WebSocket library
+- WebSocket server should run on the same domain as your API
+- If API is at https://api.example.com, WebSocket should be at wss://api.example.com
+
+### Authentication
+- Support JWT token authentication via connection auth
+- Frontend sends: `{ auth: { token: "jwt_token_here" } }`
+- Authenticate the token and store user/household context per connection
+
+### Connection Management
+```javascript
+// When client connects with JWT:
+socket.on('connection', (socket) => {
+  // 1. Verify JWT token from socket.handshake.auth.token
+  // 2. Extract user_id and household_id from token
+  // 3. Store this info with the socket connection
+  // 4. Join the user to their household room
+  socket.join(`household:${household_id}`);
+});
+```
+
+## 2. Room Management
+
+### Household Rooms
+- Each household should have a room: `household:{household_id}`
+- When a user connects, automatically join them to their household room
+- Handle these client events:
+
+```javascript
+// Client wants to join a household room
+socket.on('join:household', ({ householdId }) => {
+  socket.join(`household:${householdId}`);
+});
+
+// Client wants to leave a household room  
+socket.on('leave:household', ({ householdId }) => {
+  socket.leave(`household:${householdId}`);
+});
+```
+
+## 3. Required Event Broadcasting
+
+You need to emit these events to household rooms when changes happen:
+
+### Task Events
+```javascript
+// When a task is created via API
+io.to(`household:${householdId}`).emit('task:created', {
+  task: taskObject,
+  householdId: householdId
+});
+
+// When a task is updated via API  
+io.to(`household:${householdId}`).emit('task:updated', {
+  task: taskObject,
+  householdId: householdId
+});
+
+// When a task is deleted via API
+io.to(`household:${householdId}`).emit('task:deleted', {
+  taskId: taskId,
+  householdId: householdId
+});
+
+// When a task is completed/uncompleted via API
+io.to(`household:${householdId}`).emit('task:completed', {
+  task: taskObject,
+  householdId: householdId,
+  completedBy: userObject
+});
+
+// When a task is assigned to someone via API
+io.to(`household:${householdId}`).emit('task:assigned', {
+  task: taskObject,
+  householdId: householdId,
+  assignedTo: userObject
+});
+
+// When a task is unassigned from someone via API
+io.to(`household:${householdId}`).emit('task:unassigned', {
+  task: taskObject,
+  householdId: householdId,
+  unassignedFrom: userObject
+});
+```
+
+### Household Events
+```javascript
+// When household details are updated via API
+io.to(`household:${householdId}`).emit('household:updated', {
+  household: householdObject
+});
+
+// When a new member joins the household via API
+io.to(`household:${householdId}`).emit('household:member_joined', {
+  user: newUserObject,
+  household: householdObject
+});
+
+// When a member leaves the household via API
+io.to(`household:${householdId}`).emit('household:member_left', {
+  userId: userId,
+  household: householdObject
+});
+
+// When invite code is refreshed via API
+io.to(`household:${householdId}`).emit('household:invite_code_refreshed', {
+  inviteCode: newInviteCode,
+  household: householdObject
+});
+```
+
+### User Events  
+```javascript
+// When a user's profile is updated via API
+io.to(`household:${householdId}`).emit('user:updated', {
+  user: updatedUserObject,
+  householdId: householdId
+});
+```
+
+## 4. Integration Points
+
+### API Endpoint Modifications
+You need to add WebSocket broadcasting to these existing API endpoints:
+
+**Task Endpoints:**
+- POST /households/{id}/tasks → emit 'task:created'
+- PUT /tasks/{id} → emit 'task:updated'
+- DELETE /tasks/{id} → emit 'task:deleted'
+- PATCH /tasks/{id}/toggle → emit 'task:completed'
+- POST /tasks/{id}/assign → emit 'task:assigned'
+- DELETE /tasks/{id}/assign/{userId} → emit 'task:unassigned'
+
+**Household Endpoints:**
+- POST /households/{id}/join → emit 'household:member_joined'
+- DELETE /users/{id} → emit 'household:member_left'
+- POST /households/{id}/invite/refresh → emit 'household:invite_code_refreshed'
+
+**User Endpoints:**
+- PUT /users/{id} → emit 'user:updated'
+
+### Implementation Pattern
+For each API endpoint that modifies data:
+
+1. Process the API request normally
+2. After successful database update
+3. Get the household_id for the affected resource
+4. Emit the appropriate WebSocket event to `household:${household_id}` room
+5. Include all necessary data in the event payload
+
+## 5. Error Handling
+
+### Connection Errors
+- Handle invalid JWT tokens gracefully
+- Reconnection should be automatic on client side
+- Log connection/disconnection events for debugging
+
+### Broadcasting Errors
+- If WebSocket emit fails, log but don't fail the API request
+- WebSocket should be additive to existing API functionality
+
+## 6. Performance Considerations
+
+### Scaling
+- If you have multiple server instances, use Redis adapter for Socket.IO
+- This ensures events broadcast across all server instances
+
+### Rate Limiting
+- Consider rate limiting WebSocket connections per IP
+- Prevent abuse of connection/reconnection attempts
+
+## 7. Testing
+
+### Manual Testing
+You can test WebSocket events using a tool like Socket.IO client tester or postman.
+
+### Expected Behavior
+1. User connects → should join household room automatically
+2. User creates task via API → other household members should receive 'task:created' event
+3. User completes task → other members should see real-time status update
+4. User disconnects → should be removed from rooms
+
+## 8. Environment Variables
+
+Add these to your backend configuration:
+
+```
+WEBSOCKET_ENABLED=true
+WEBSOCKET_PORT=3001  # or same as API port
+REDIS_URL=redis://localhost:6379  # if using Redis adapter
+```
+
+## 9. CORS Configuration
+
+Make sure WebSocket connections are allowed from your React Native app domains:
+
+```javascript
+const io = new Server(server, {
+  cors: {
+    origin: ["http://localhost:8081", "https://yourdomain.com"],
+    methods: ["GET", "POST"]
+  }
+});
+```
+
+## 10. Data Format Requirements
+
+All event payloads should include complete objects (not just IDs) so the frontend can update its cache immediately without additional API calls.
+
+Example task object should include:
+- id, title, description, category, dueDate, completed
+- assignedTo array with user objects
+- createdAt, updatedAt timestamps
+
+## Questions?
+
+Please reach out if you need clarification on any of these requirements. The frontend is ready and waiting for these WebSocket events to enable real-time collaboration!
+
+The implementation priority should be:
+1. Task creation/updates (highest priority)
+2. Task completion/assignment 
+3. Household member changes
+4. User profile updates
+
+Thanks!

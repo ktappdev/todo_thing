@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"household-todo-backend/models"
+	ws "household-todo-backend/websocket"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
@@ -125,6 +126,7 @@ func (tc *TaskController) CreateTask(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusCreated, task)
+	go ws.BroadcastToHousehold(householdID, "task:created", gin.H{"task": task, "householdId": householdID})
 }
 
 // UpdateTask updates an existing task
@@ -185,6 +187,7 @@ func (tc *TaskController) UpdateTask(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, task)
+	go ws.BroadcastToHousehold(householdID, "task:updated", gin.H{"task": task, "householdId": householdID})
 }
 
 // DeleteTask deletes a task
@@ -204,6 +207,7 @@ func (tc *TaskController) DeleteTask(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "Task deleted successfully"})
+	go ws.BroadcastToHousehold(householdID, "task:deleted", gin.H{"taskId": taskID, "householdId": householdID})
 }
 
 // ToggleTaskCompletion toggles the completion status of a task
@@ -241,6 +245,7 @@ func (tc *TaskController) ToggleTaskCompletion(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, task)
+	go ws.BroadcastToHousehold(householdID, "task:completed", gin.H{"task": task, "householdId": householdID, "completedBy": userID})
 }
 
 // AssignTask assigns a task to users
@@ -282,6 +287,7 @@ func (tc *TaskController) AssignTask(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, task)
+	go ws.BroadcastToHousehold(householdID, "task:assigned", gin.H{"task": task, "householdId": householdID})
 }
 
 // UnassignTask removes a task assignment for a user
@@ -308,4 +314,5 @@ func (tc *TaskController) UnassignTask(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, task)
+	go ws.BroadcastToHousehold(householdID, "task:unassigned", gin.H{"task": task, "householdId": householdID, "unassignedFrom": userID})
 }

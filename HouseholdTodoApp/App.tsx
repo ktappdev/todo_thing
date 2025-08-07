@@ -6,7 +6,7 @@
  */
 
 import React, { useEffect } from 'react';
-import { StatusBar, StyleSheet, useColorScheme, View, Platform } from 'react-native';
+import { StatusBar, StyleSheet, useColorScheme, View } from 'react-native';
 import * as SplashScreen from 'expo-splash-screen';
 import AppNavigator from './src/navigation/AppNavigator';
 

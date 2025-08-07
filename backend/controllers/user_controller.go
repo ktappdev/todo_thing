@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"household-todo-backend/models"
+	ws "household-todo-backend/websocket"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
@@ -56,6 +57,7 @@ func (uc *UserController) UpdateUser(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, user)
+	go ws.BroadcastToHousehold(householdID, "user:updated", gin.H{"user": user, "householdId": householdID})
 }
 
 // LeaveHousehold removes a user from their household
@@ -102,4 +104,5 @@ func (uc *UserController) LeaveHousehold(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "Successfully left household"})
+	go ws.BroadcastToHousehold(householdID, "household:member_left", gin.H{"userId": userID, "household": gin.H{"id": householdID}})
 }

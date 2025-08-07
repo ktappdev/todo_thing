@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { NavigationContainer, useFocusEffect } from '@react-navigation/native';
+import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { View, ActivityIndicator, AppState } from 'react-native';
 
@@ -7,6 +7,7 @@ import { User } from '../types';
 import { storage } from '../utils/storage';
 import OnboardingNavigator from './OnboardingNavigator';
 import TabNavigator from './TabNavigator';
+import { QueryProvider } from '../providers/QueryProvider';
 
 export type RootStackParamList = {
   Onboarding: undefined;
@@ -53,15 +54,17 @@ const AppNavigator = () => {
   }
 
   return (
-    <NavigationContainer>
-      <Stack.Navigator screenOptions={{ headerShown: false }}>
-        {user ? (
-          <Stack.Screen name="Main" component={TabNavigator} />
-        ) : (
-          <Stack.Screen name="Onboarding" component={OnboardingNavigator} />
-        )}
-      </Stack.Navigator>
-    </NavigationContainer>
+    <QueryProvider>
+      <NavigationContainer>
+        <Stack.Navigator screenOptions={{ headerShown: false }}>
+          {user ? (
+            <Stack.Screen name="Main" component={TabNavigator} />
+          ) : (
+            <Stack.Screen name="Onboarding" component={OnboardingNavigator} />
+          )}
+        </Stack.Navigator>
+      </NavigationContainer>
+    </QueryProvider>
   );
 };
 

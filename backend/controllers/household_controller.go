@@ -6,6 +6,7 @@ import (
 
 	"household-todo-backend/models"
 	"household-todo-backend/utils"
+	ws "household-todo-backend/websocket"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
@@ -107,6 +108,7 @@ func (hc *HouseholdController) CreateHousehold(c *gin.Context) {
 		"household": household,
 		"user":      user,
 	})
+	go ws.BroadcastToHousehold(household.ID, "household:member_joined", gin.H{"user": user, "household": household})
 }
 
 // GetHouseholdByCode retrieves a household by its invite code
@@ -186,6 +188,7 @@ func (hc *HouseholdController) JoinHousehold(c *gin.Context) {
 		"token": token,
 		"user":  user,
 	})
+	go ws.BroadcastToHousehold(household.ID, "household:member_joined", gin.H{"user": user, "household": household})
 }
 
 // GetHouseholdUsers retrieves all users in a household
@@ -265,6 +268,7 @@ func (hc *HouseholdController) RefreshInviteCode(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"inviteCode": household.InviteCode})
+	go ws.BroadcastToHousehold(household.ID, "household:invite_code_refreshed", gin.H{"inviteCode": household.InviteCode, "household": household})
 }
 
 // GetMe returns all data for the authenticated user (bootstrap endpoint)

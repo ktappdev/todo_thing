@@ -10,15 +10,16 @@ import (
 	"household-todo-backend/controllers"
 	"household-todo-backend/middleware"
 	"household-todo-backend/models"
+	ws "household-todo-backend/websocket"
 
 	"github.com/gin-gonic/gin"
+	"github.com/joho/godotenv"
 )
 
 func main() {
-	// Initialize database
-	db := config.InitDB()
+	_ = godotenv.Load()
 
-	// Auto migrate the models
+	db := config.InitDB()
 	err := db.AutoMigrate(
 		&models.Household{},
 		&models.User{},
@@ -29,10 +30,8 @@ func main() {
 		log.Fatal("Failed to migrate database:", err)
 	}
 
-	// Set up Gin router
 	r := gin.Default()
 
-	// CORS middleware
 	r.Use(func(c *gin.Context) {
 		c.Header("Access-Control-Allow-Origin", "*")
 		c.Header("Access-Control-Allow-Credentials", "true")
@@ -47,32 +46,23 @@ func main() {
 		c.Next()
 	})
 
-	// Initialize controllers
 	householdController := controllers.NewHouseholdController(db)
 	taskController := controllers.NewTaskController(db)
 	userController := controllers.NewUserController(db)
 
-	// API routes
 	api := r.Group("/api")
 	{
-		// Public routes (no authentication required)
 		api.POST("/households", householdController.CreateHousehold)
 		api.GET("/households/code/:code", householdController.GetHouseholdByCode)
 		api.POST("/households/code/:code/join", householdController.JoinHousehold)
 
-		// Protected routes (authentication required)
 		protected := api.Group("/")
 		protected.Use(middleware.AuthMiddleware())
 		{
-			// Bootstrap endpoint
 			protected.GET("/me", householdController.GetMe)
-
-			// Household routes
 			protected.GET("/households/:id/users", householdController.GetHouseholdUsers)
 			protected.GET("/households/:id/invite", householdController.GetInviteCode)
 			protected.POST("/households/:id/invite/refresh", householdController.RefreshInviteCode)
-
-			// Task routes
 			protected.GET("/households/:id/tasks", taskController.GetHouseholdTasks)
 			protected.POST("/households/:id/tasks", taskController.CreateTask)
 			protected.PUT("/tasks/:id", taskController.UpdateTask)
@@ -80,19 +70,17 @@ func main() {
 			protected.PATCH("/tasks/:id/toggle", taskController.ToggleTaskCompletion)
 			protected.POST("/tasks/:id/assign", taskController.AssignTask)
 			protected.DELETE("/tasks/:id/assign/:userId", taskController.UnassignTask)
-
-			// User routes
 			protected.PUT("/users/:id", userController.UpdateUser)
 			protected.DELETE("/users/:id", userController.LeaveHousehold)
 		}
 	}
 
-	// Health check endpoint
 	r.GET("/health", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"status": "ok"})
 	})
 
-	// Start server
+	ws.RegisterRoutes(r)
+
 	ifaces, _ := net.Interfaces()
 	for _, iface := range ifaces {
 		addrs, _ := iface.Addrs()

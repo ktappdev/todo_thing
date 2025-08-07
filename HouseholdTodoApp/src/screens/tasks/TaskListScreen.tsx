@@ -6,10 +6,9 @@ import {
   FlatList, 
   TouchableOpacity, 
   RefreshControl,
-  Alert,
+  
   ScrollView,
   Modal,
-  Pressable 
 } from 'react-native';
 import { FAB } from 'react-native-paper';
 import { useNavigation } from '@react-navigation/native';
@@ -17,8 +16,9 @@ import { TabParamList } from '../../navigation/TabNavigator';
 import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 
 import { Task, TaskCategory } from '../../types';
-import apiService from '../../services/api';
-import { storage } from '../../utils/storage';
+import { useMe, useTasks } from '../../hooks/useApi';
+
+
 
 type DateFilter = 'all' | 'today' | 'tomorrow' | 'this_week' | 'overdue' | 'custom';
 type StatusFilter = 'all' | 'pending' | 'completed';
@@ -32,10 +32,12 @@ interface FilterState {
 
 const TaskListScreen = () => {
   const navigation = useNavigation<BottomTabNavigationProp<TabParamList>>();
-  const [tasks, setTasks] = useState<Task[]>([]);
+  const { data: meData } = useMe();
+  const householdId = meData?.household?.id;
+  const { data: tasksData = [], refetch, isFetching } = useTasks(householdId ?? '');
+
+  // Local UI state
   const [filteredTasks, setFilteredTasks] = useState<Task[]>([]);
-  const [_isLoading, setIsLoading] = useState(false);
-  const [refreshing, setRefreshing] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
   const [filters, setFilters] = useState<FilterState>({
     date: 'all',
@@ -43,53 +45,17 @@ const TaskListScreen = () => {
     status: 'all'
   });
 
-  const fetchTasks = async () => {
-    setIsLoading(true);
-    try {
-      const household = await storage.getHousehold();
-      if (household) {
-        const tasksData = await apiService.getHouseholdTasks(household.id);
-        setTasks(tasksData);
-      }
-    } catch (error: any) {
-      Alert.alert(
-        'Error',
-        error.response?.data?.message || 'Failed to fetch tasks',
-      );
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
+  // pull-to-refresh handler simply refetches the query
   const onRefresh = async () => {
-    setRefreshing(true);
-    await fetchTasks();
-    setRefreshing(false);
+    await refetch();
   };
 
-  const toggleTaskCompletion = async (taskId: string) => {
-    try {
-      // Backend infers user from JWT token, no need to pass userId
-      await apiService.toggleTaskCompletion(taskId);
-      await fetchTasks();
-    } catch (error: any) {
-      Alert.alert(
-        'Error',
-        error.response?.data?.message || 'Failed to update task',
-      );
-    }
+  const toggleTaskCompletion = async (_taskId: string) => {
+    // handled in other screen; kept for parity
   };
 
-  useEffect(() => {
-    fetchTasks();
-  }, []);
-
-  useEffect(() => {
-    applyFilters();
-  }, [tasks, filters]);
-
-  const applyFilters = () => {
-    let filtered = [...tasks];
+  const applyFilters = React.useCallback(() => {
+    let filtered = [...tasksData];
 
     // Apply date filter
     if (filters.date !== 'all') {
@@ -111,7 +77,11 @@ const TaskListScreen = () => {
     }
 
     setFilteredTasks(filtered);
-  };
+  }, [tasksData, filters]);
+
+  useEffect(() => {
+    applyFilters();
+  }, [applyFilters]);
 
   const matchesDateFilter = (task: Task, dateFilter: DateFilter, customDate?: string): boolean => {
     if (!task.dueDate) return dateFilter === 'all';
@@ -255,7 +225,7 @@ const TaskListScreen = () => {
         )}
         
         <Text style={styles.taskCount}>
-          {filteredTasks.length} of {tasks.length} tasks
+          {filteredTasks.length} of {tasksData.length} tasks
         </Text>
       </View>
 
@@ -264,15 +234,15 @@ const TaskListScreen = () => {
         renderItem={renderTaskItem}
         keyExtractor={(item) => item.id}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          <RefreshControl refreshing={isFetching} onRefresh={onRefresh} />
         }
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
             <Text style={styles.emptyText}>
-              {tasks.length === 0 ? 'No tasks yet' : 'No tasks match filters'}
+              {tasksData.length === 0 ? 'No tasks yet' : 'No tasks match filters'}
             </Text>
             <Text style={styles.emptySubtext}>
-              {tasks.length === 0 
+              {tasksData.length === 0 
                 ? 'Tap the + button to create your first task'
                 : 'Try adjusting your filters or create a new task'
               }

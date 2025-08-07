@@ -2,12 +2,13 @@ import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 
-import TaskListScreen from '../screens/tasks/TaskListScreen';
+import TaskListScreen from '../screens/tasks/TaskListScreenModern';
 import MembersScreen from '../screens/household/MembersScreen';
 import SettingsScreen from '../screens/household/SettingsScreen';
 import InviteScreen from '../screens/household/InviteScreen';
 import CreateTaskScreen from '../screens/tasks/CreateTaskScreen';
 import TaskDetailScreen from '../screens/tasks/TaskDetailScreen';
+
 
 export type TabParamList = {
   Tasks: undefined;
@@ -90,7 +91,7 @@ const TabNavigator = () => {
           tabBarButton: () => null, // Hide from tab bar
         }}
       />
-    </Tab.Navigator>
+      </Tab.Navigator>
   );
 };
 

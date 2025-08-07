@@ -108,6 +108,26 @@ export const storage = {
     }
   },
 
+  // Clear specific data
+  async clearUser(): Promise<void> {
+    try {
+      await AsyncStorage.multiRemove([
+        STORAGE_KEYS.USER,
+        STORAGE_KEYS.AUTH_TOKEN,
+      ]);
+    } catch (error) {
+      console.error('Error clearing user data:', error);
+    }
+  },
+
+  async clearHousehold(): Promise<void> {
+    try {
+      await AsyncStorage.removeItem(STORAGE_KEYS.HOUSEHOLD);
+    } catch (error) {
+      console.error('Error clearing household data:', error);
+    }
+  },
+
   // Clear all data
   async clearAll(): Promise<void> {
     try {

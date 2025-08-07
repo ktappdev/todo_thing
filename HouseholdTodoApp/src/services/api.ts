@@ -1,10 +1,30 @@
 import { API_BASE_URL } from '@env';
 import axios, { AxiosInstance } from 'axios';
 import { storage } from '../utils/storage';
-import { Household, User, Task, CreateHouseholdRequest, JoinHouseholdRequest, CreateTaskRequest, UpdateTaskRequest, AssignTaskRequest, ToggleTaskRequest } from '../types';
+import { Household, User, Task, CreateHouseholdRequest, JoinHouseholdRequest, CreateTaskRequest, UpdateTaskRequest, AssignTaskRequest } from '../types';
+
 
 class ApiService {
   private api: AxiosInstance;
+  /**
+   * Extract householdId encoded in the stored JWT token.
+   * Returns null if no token is found or token cannot be decoded.
+   */
+  private async getHouseholdIdFromToken(): Promise<string | null> {
+    const token = await storage.getToken();
+    if (!token) return null;
+    try {
+      const payloadSegment = token.split('.')[1];
+      if (!payloadSegment) return null;
+      const json = globalThis.atob ? globalThis.atob(payloadSegment) : Buffer.from(payloadSegment, 'base64').toString('utf-8');
+      const payload = JSON.parse(json);
+      return payload.householdId || null;
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      if (__DEV__) console.warn('Failed to decode token payload', err);
+      return null;
+    }
+  }
 
   constructor() {
     this.api = axios.create({
@@ -71,29 +91,44 @@ class ApiService {
     return user;
   }
 
-  async getHouseholdUsers(householdId: string): Promise<User[]> {
-    const response = await this.api.get(`/households/${householdId}/users`);
+  async getHouseholdUsers(householdId?: string): Promise<User[]> {
+    const tokenId = await this.getHouseholdIdFromToken();
+    const resolvedId = tokenId ?? householdId;
+    if (!resolvedId) throw new Error('Household ID not available');
+    const response = await this.api.get(`/households/${resolvedId}/users`);
     return response.data;
   }
 
-  async getInviteCode(householdId: string): Promise<{ inviteCode: string }> {
-    const response = await this.api.get(`/households/${householdId}/invite`);
+  async getInviteCode(householdId?: string): Promise<{ inviteCode: string }> {
+    const tokenId = await this.getHouseholdIdFromToken();
+    const resolvedId = tokenId ?? householdId;
+    if (!resolvedId) throw new Error('Household ID not available');
+    const response = await this.api.get(`/households/${resolvedId}/invite`);
     return response.data;
   }
 
-  async refreshInviteCode(householdId: string): Promise<{ inviteCode: string }> {
-    const response = await this.api.post(`/households/${householdId}/invite/refresh`);
+  async refreshInviteCode(householdId?: string): Promise<{ inviteCode: string }> {
+    const tokenId = await this.getHouseholdIdFromToken();
+    const resolvedId = tokenId ?? householdId;
+    if (!resolvedId) throw new Error('Household ID not available');
+    const response = await this.api.post(`/households/${resolvedId}/invite/refresh`);
     return response.data;
   }
 
   // Task API
-  async getHouseholdTasks(householdId: string): Promise<Task[]> {
-    const response = await this.api.get(`/households/${householdId}/tasks`);
+  async getHouseholdTasks(householdId?: string): Promise<Task[]> {
+    const tokenId = await this.getHouseholdIdFromToken();
+    const resolvedId = tokenId ?? householdId;
+    if (!resolvedId) throw new Error('Household ID not available');
+    const response = await this.api.get(`/households/${resolvedId}/tasks`);
     return response.data;
   }
 
-  async createTask(householdId: string, data: CreateTaskRequest): Promise<Task> {
-    const response = await this.api.post(`/households/${householdId}/tasks`, data);
+  async createTask(householdId: string | undefined, data: CreateTaskRequest): Promise<Task> {
+    const tokenId = await this.getHouseholdIdFromToken();
+    const resolvedId = tokenId ?? householdId;
+    if (!resolvedId) throw new Error('Household ID not available');
+    const response = await this.api.post(`/households/${resolvedId}/tasks`, data);
     return response.data;
   }
 
