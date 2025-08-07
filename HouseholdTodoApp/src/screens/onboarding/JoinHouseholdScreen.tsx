@@ -14,6 +14,7 @@ import {
 import { useForm, Controller } from 'react-hook-form';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { CommonActions } from '@react-navigation/native';
 import { RootStackParamList } from '../../navigation/AppNavigator';
 
 import apiService from '../../services/api';
@@ -43,6 +44,11 @@ const JoinHouseholdScreen = () => {
   const onSubmit = async (data: JoinHouseholdFormData) => {
     setIsLoading(true);
     try {
+      // Clear any existing user data first (in case user was in another household)
+      await storage.removeUser();
+      await storage.removeHousehold();
+      await storage.removeToken();
+      
       // Get device ID
       const deviceId = await storage.getDeviceId();
 
@@ -58,10 +64,12 @@ const JoinHouseholdScreen = () => {
       await storage.saveHousehold(household);
 
       // Navigate to main app
-      navigation.reset({
-        index: 0,
-        routes: [{ name: 'Main' }],
-      });
+      navigation.dispatch(
+        CommonActions.reset({
+          index: 0,
+          routes: [{ name: 'Main' }],
+        })
+      );
     } catch (error: any) {
       Alert.alert(
         'Error',

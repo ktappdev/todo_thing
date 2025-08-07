@@ -19,6 +19,8 @@ export interface User {
 
 export interface CreateHouseholdRequest {
   name: string;
+  userName: string;
+  deviceId: string;
 }
 
 export interface JoinHouseholdRequest {

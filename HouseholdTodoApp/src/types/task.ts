@@ -23,6 +23,8 @@ export interface TaskAssignment {
   id: string;
   taskId: string;
   userId: string;
+  createdAt: string;
+  updatedAt: string;
   user: User;
 }
 
@@ -31,7 +33,6 @@ export interface CreateTaskRequest {
   description?: string;
   category: TaskCategory;
   dueDate?: string;
-  creatorId: string;
   assignedTo: string[];
 }
 
@@ -48,5 +49,5 @@ export interface AssignTaskRequest {
 }
 
 export interface ToggleTaskRequest {
-  userId: string;
+  // Empty body - backend infers user from JWT
 }

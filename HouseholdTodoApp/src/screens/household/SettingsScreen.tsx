@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
+import { CommonActions } from '@react-navigation/native';
 import { RootStackParamList } from '../../navigation/AppNavigator';
 
 import { storage } from '../../utils/storage';
@@ -55,10 +56,12 @@ const SettingsScreen = () => {
                 await apiService.leaveHousehold(user.id);
                 await storage.removeUser();
                 await storage.removeHousehold();
-                navigation.reset({
-                  index: 0,
-                  routes: [{ name: 'Onboarding' }],
-                });
+                navigation.dispatch(
+                  CommonActions.reset({
+                    index: 0,
+                    routes: [{ name: 'Onboarding' }],
+                  })
+                );
               }
             } catch (error: any) {
               Alert.alert(

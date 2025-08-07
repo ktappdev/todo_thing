@@ -26,6 +26,7 @@ const TaskDetailScreen = () => {
   const [task, setTask] = useState<Task | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [householdMembers, setHouseholdMembers] = useState<User[]>([]);
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
 
   useEffect(() => {
     loadTaskDetails();
@@ -35,6 +36,10 @@ const TaskDetailScreen = () => {
   const loadTaskDetails = async () => {
     setIsLoading(true);
     try {
+      // Load current user
+      const user = await storage.getUser();
+      setCurrentUser(user);
+      
       // In a real app, you would fetch the task by ID
       // For now, we'll simulate loading from the household tasks
       const household = await storage.getHousehold();
@@ -68,11 +73,9 @@ const TaskDetailScreen = () => {
     if (!task) return;
     
     try {
-      const user = await storage.getUser();
-      if (user) {
-        await apiService.toggleTaskCompletion(task.id, { userId: user.id });
-        await loadTaskDetails();
-      }
+      // Backend infers user from JWT token, no need to pass userId
+      await apiService.toggleTaskCompletion(task.id);
+      await loadTaskDetails();
     } catch (error: any) {
       Alert.alert(
         'Error',
@@ -125,6 +128,40 @@ const TaskDetailScreen = () => {
     return new Date(dateString).toLocaleDateString();
   };
 
+  const formatDateTime = (dateString?: string) => {
+    if (!dateString) return 'Unknown';
+    return new Date(dateString).toLocaleString();
+  };
+
+  const canToggleCompletion = () => {
+    if (!task || !currentUser) return false;
+    
+    // If task is not completed, anyone can mark it complete
+    if (!task.completed) return true;
+    
+    // If task is completed, only the person who completed it can unmark it
+    return task.completedBy === currentUser.id;
+  };
+
+  const getCompletedByName = () => {
+    if (!task || !task.completedBy) return 'Unknown';
+    
+    // Check if it's the creator
+    if (task.creator?.id === task.completedBy) {
+      return task.creator.name;
+    }
+    
+    // Check in assignments
+    const completer = task.assignments?.find(a => a.user.id === task.completedBy);
+    if (completer) {
+      return completer.user.name;
+    }
+    
+    // Check in household members
+    const member = householdMembers.find(m => m.id === task.completedBy);
+    return member?.name || 'Unknown';
+  };
+
   if (isLoading) {
     return (
       <View style={styles.loadingContainer}>
@@ -174,6 +211,22 @@ const TaskDetailScreen = () => {
             <Text style={styles.detailLabel}>Created By:</Text>
             <Text style={styles.detailValue}>{task.creator?.name || 'Unknown'}</Text>
           </View>
+          <View style={styles.detailRow}>
+            <Text style={styles.detailLabel}>Created:</Text>
+            <Text style={styles.detailValue}>{formatDateTime(task.createdAt)}</Text>
+          </View>
+          {task.completed && (
+            <>
+              <View style={styles.detailRow}>
+                <Text style={styles.detailLabel}>Completed By:</Text>
+                <Text style={[styles.detailValue, styles.completedByText]}>{getCompletedByName()}</Text>
+              </View>
+              <View style={styles.detailRow}>
+                <Text style={styles.detailLabel}>Completed:</Text>
+                <Text style={[styles.detailValue, styles.completedByText]}>{formatDateTime(task.completedAt)}</Text>
+              </View>
+            </>
+          )}
         </View>
 
         <View style={styles.section}>
@@ -196,13 +249,26 @@ const TaskDetailScreen = () => {
 
         <View style={styles.actionButtons}>
           <TouchableOpacity
-            style={[styles.actionButton, styles.completeButton]}
+            style={[
+              styles.actionButton, 
+              styles.completeButton,
+              !canToggleCompletion() && styles.disabledButton
+            ]}
             onPress={toggleTaskCompletion}
+            disabled={!canToggleCompletion()}
           >
-            <Text style={styles.completeButtonText}>
+            <Text style={[
+              styles.completeButtonText,
+              !canToggleCompletion() && styles.disabledButtonText
+            ]}>
               {task.completed ? 'Mark as Incomplete' : 'Mark as Complete'}
             </Text>
           </TouchableOpacity>
+          {task.completed && !canToggleCompletion() && (
+            <Text style={styles.restrictionText}>
+              Only {getCompletedByName()} can mark this as incomplete
+            </Text>
+          )}
           
           <TouchableOpacity
             style={[styles.actionButton, styles.deleteButton]}
@@ -314,6 +380,10 @@ const styles = StyleSheet.create({
     textDecorationLine: 'line-through',
     color: '#4CAF50',
   },
+  completedByText: {
+    color: '#4CAF50',
+    fontWeight: 'bold',
+  },
   assignedUser: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -366,6 +436,19 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: 'bold',
+  },
+  disabledButton: {
+    backgroundColor: '#ccc',
+  },
+  disabledButtonText: {
+    color: '#999',
+  },
+  restrictionText: {
+    fontSize: 12,
+    color: '#ff5252',
+    textAlign: 'center',
+    marginTop: 8,
+    fontStyle: 'italic',
   },
   fab: {
     position: 'absolute',

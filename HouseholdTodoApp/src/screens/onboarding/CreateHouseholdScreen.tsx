@@ -11,6 +11,7 @@ import {
 import { useForm, Controller } from 'react-hook-form';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { CommonActions } from '@react-navigation/native';
 import { RootStackParamList } from '../../navigation/AppNavigator';
 
 import apiService from '../../services/api';
@@ -40,29 +41,32 @@ const CreateHouseholdScreen = () => {
   const onSubmit = async (data: CreateHouseholdFormData) => {
     setIsLoading(true);
     try {
-      // Create household
-      const household = await apiService.createHousehold({
-        name: data.householdName,
-      });
-
+      // Clear any existing user data first (in case user was in another household)
+      await storage.removeUser();
+      await storage.removeHousehold();
+      await storage.removeToken();
+      
       // Get device ID
       const deviceId = await storage.getDeviceId();
 
-      // Join household with user
-      const user = await apiService.joinHousehold(household.inviteCode, {
-        name: data.userName,
+      // Create household with user in single API call
+      const { household, user } = await apiService.createHousehold({
+        name: data.householdName,
+        userName: data.userName,
         deviceId,
       });
 
-      // Save user and household to storage
-      await storage.saveUser(user);
+      // Save household to storage
       await storage.saveHousehold(household);
-
-      // Navigate to main app
-      navigation.reset({
-        index: 0,
-        routes: [{ name: 'Main' }],
-      });
+      // User is already saved in the API service
+      
+      // Reset navigation to the main app - using dispatch to reset the root navigator
+      navigation.dispatch(
+        CommonActions.reset({
+          index: 0,
+          routes: [{ name: 'Main' }],
+        })
+      );
     } catch (error: any) {
       Alert.alert(
         'Error',

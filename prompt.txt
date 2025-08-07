@@ -1,0 +1,125 @@
+You are building a React Native (iOS + Android) frontend for a Household To‑Do app. Only build the mobile frontend; prefer using the existing Go backend and REST endpoints below. If using that backend is not an option, scaffold a minimal compatible backend (optional) as described at the end. Use TypeScript.
+
+High-level goals
+- Onboarding flow: create household or join via invite code, capture user name, persist user + household IDs locally.
+- Core features: list tasks, create/edit/delete tasks, assign/unassign users, toggle completion, filter/sort, due dates, categories, and basic activity hints.
+- Household management: view members, rename self, refresh/regenerate invite code, leave household.
+- Offline-first: read cache, optimistic updates, retry on failure.
+- Polished UX: clean navigation, empty states, loading/skeletons, pull-to-refresh, toasts for errors, accessibility labels.
+- Nice-to-have upgrades: task quick actions (swipe), search, simple notifications scaffold (local), avatar initials, color themes, and basic analytics hooks (no vendor).
+
+Tech constraints & choices
+- React Native + TypeScript. No Expo-specific APIs required (project is RN CLI). Keep vendor deps minimal and common to RN.
+- State/query: use React Query (or lightweight equivalent) for server state; use React Context/Zustand for local app state (selected household/user, UI prefs).
+- Navigation: @react-navigation/native (stack + bottom tabs). Persist navigation state.
+- Forms: react-hook-form with zod validation.
+- HTTP: fetch wrapper with baseURL, JSON, and unified error handling.
+- Storage: AsyncStorage for persisting userId and householdId.
+- Styling: StyleSheet or styled-components; follow theme tokens (light/dark). Keep styles centralized.
+- Testing: Jest + @testing-library/react-native for key screens and hooks.
+
+Backend base URL
+- http://localhost:8080/api
+- Health: GET /health -> { "status": "ok" }
+
+Data model hints
+- IDs are UUID strings. Dates are ISO8601 strings. Errors are { "error": string }.
+- Entities: Household { id, name, inviteCode, createdAt, updatedAt, users: User[], tasks: Task[] }
+- User { id, name, deviceId, householdId, lastSeen, isActive }
+- Task { id, title, description, category: 'GENERAL'|'CHORES'|'SHOPPING'|'WORK', dueDate|null, creatorId, creator?:User, assignments: { userId, user:User }[], completed:boolean, completedAt|null, completedBy|null }
+
+Existing API endpoints (use these)
+- Households
+  - POST /households { name } -> 201 Household
+  - GET /households/code/:code -> 200 Household | 404
+  - POST /households/code/:code/join { name, deviceId } -> 201|200 User
+  - GET /households/:id/users -> 200 User[]
+  - GET /households/:id/invite -> 200 { inviteCode }
+  - POST /households/:id/invite/refresh -> 200 { inviteCode }
+- Tasks
+  - GET /households/:id/tasks -> 200 Task[] (with relations)
+  - POST /households/:id/tasks { title, description, category, dueDate|null, creatorId, assignedTo:string[] } -> 201 Task
+  - PUT /tasks/:id { title?, description?, category?, dueDate?, assignedTo? } -> 200 Task
+  - DELETE /tasks/:id -> 200 { message }
+  - PATCH /tasks/:id/toggle { userId } -> 200 Task
+  - POST /tasks/:id/assign { userIds:string[] } -> 200 Task
+  - DELETE /tasks/:id/assign/:userId -> 200 Task
+- Users
+  - PUT /users/:id { name } -> 200 User
+  - DELETE /users/:id -> 200 { message }
+
+App flows to implement
+1) Onboarding
+   - Screen A: Welcome with two CTAs: Create Household, Join Household.
+   - Create: form(name) -> POST /households; then prompt for your name + deviceId; join via POST /households/code/{inviteCode}/join or auto-add creator as user if needed; persist userId + householdId.
+   - Join: form(inviteCode, name) -> POST /households/code/{code}/join; persist ids.
+   - After onboarding, go to Main tabs.
+2) Main tabs
+   - Tasks tab (default):
+     - List with sections: Today, Upcoming, No due date; search box; filter by category, assignee, completion.
+     - Pull-to-refresh (refetch). Infinite/virtualized list not required for MVP.
+     - Create FAB -> modal form: title(required), description, category picker, due date, assignees multi-select from household users.
+     - Item row: title, chips (category, due date), assignees avatars, checkbox toggles completion via PATCH /tasks/:id/toggle { userId } with optimistic update; swipe left: edit; swipe right: delete confirm.
+     - Edit modal uses PUT /tasks/:id; delete uses DELETE /tasks/:id.
+   - Household tab:
+     - Show invite code with copy/share; refresh code via POST /households/:id/invite/refresh.
+     - Members list with rename self (PUT /users/:id) and leave household (DELETE /users/:id) with local state reset to onboarding.
+     - Show basic stats: open vs completed tasks.
+   - Profile tab:
+     - Rename self; theme toggle; notification prefs (local only); show deviceId.
+3) Error and empty states
+   - Show skeletons while loading, dedicated empty-state illustrations/messages.
+   - Toast errors from network; map HTTP errors to friendly copy; retry buttons.
+4) Offline-first behavior
+   - Cache tasks and users in React Query; retry failed mutations; queue offline toggles and CRUD where practical; reconcile on reconnect.
+
+Project structure (suggest)
+- src/
+  - api/client.ts (fetch base, interceptors)
+  - api/households.ts, tasks.ts, users.ts (typed functions per endpoint)
+  - types/ (DTOs matching backend)
+  - storage/keys.ts, storage/index.ts (get/set for ids)
+  - navigation/ (stacks, tabs, linking)
+  - screens/ Onboarding/, Tasks/, Household/, Profile/
+  - components/ (TaskItem, EmptyState, Avatar, InviteCodeCard, Form fields)
+  - hooks/ (useAuthContext, useTasks, useUsers)
+  - theme/ (tokens, light/dark)
+  - utils/ (date, formatters)
+  - tests/
+
+Implementation details
+- Provide strong TypeScript types for all API responses and request bodies based on the endpoint list.
+- Create a minimal env mechanism for baseURL with fallback to http://localhost:8080/api.
+- Device ID: generate and persist a stable UUID on first launch.
+- Accessibility: set accessible labels/roles; support dynamic font sizes.
+- Internationalization-ready: isolate copy in a strings file; no library required for MVP.
+- Analytics: expose a no-op track(event, props) util; leave hooks in key actions.
+
+Sample API typing
+- Household, User, Task DTOs; union Category = 'GENERAL' | 'CHORES' | 'SHOPPING' | 'WORK'.
+- Example: createTask(householdId, data) -> POST /households/:id/tasks with data; returns Task.
+
+Testing requirements
+- Unit test API client error mapping.
+- Component tests for TaskItem toggle optimistic behavior.
+- Screen tests for Onboarding join flow happy path and error state.
+
+Deliverables
+- Complete RN app skeleton with the flows above, wired to real endpoints.
+- Seed example mocks/factories for tests.
+- Minimal README: how to run (npm start; npm run ios/android), config baseURL, and backend URL note.
+
+Out of scope
+- Push notifications, background sync, deep backend changes.
+
+Optional alternative backend (if not using Go backend)
+- Provide a minimal REST backend spec compatible with the endpoints above, implemented in either:
+  - Node.js + Express + SQLite (via Prisma or better-sqlite3), or
+  - Supabase (Postgres + Row Level Security) with SQL schemas and Edge Functions mimicking endpoints.
+- Requirements:
+  - Preserve the same routes, request/response DTOs, and status codes.
+  - Seed script to create a demo household, users, and tasks.
+  - CORS enabled for mobile dev, rate-limit basic.
+  - README with setup commands and .env examples (BASE_URL for app).
+
+If any info is ambiguous, make a sensible decision and document it briefly in README. Keep code clean, typed, and production-ready enough for a small team to extend.

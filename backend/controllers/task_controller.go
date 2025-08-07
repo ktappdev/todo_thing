@@ -65,6 +65,13 @@ func (tc *TaskController) GetHouseholdTasks(c *gin.Context) {
 func (tc *TaskController) CreateTask(c *gin.Context) {
 	householdID := c.Param("id")
 	userID := c.GetString("userID")
+	userHouseholdID := c.GetString("householdID")
+
+	// Enforce that the JWT household matches the path household
+	if householdID != userHouseholdID {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Access denied"})
+		return
+	}
 
 	var req CreateTaskRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -74,7 +81,7 @@ func (tc *TaskController) CreateTask(c *gin.Context) {
 
 	// Verify household exists and user belongs to it
 	var household models.Household
-	if err := tc.DB.First(&household, householdID).Error; err != nil {
+	if err := tc.DB.Where("id = ?", householdID).First(&household).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Household not found"})
 		return
 	}
@@ -112,7 +119,10 @@ func (tc *TaskController) CreateTask(c *gin.Context) {
 	}
 
 	// Reload task with relationships
-	tc.DB.Preload("Creator").Preload("Assignments.User").First(&task, task.ID)
+	if err := tc.DB.Preload("Creator").Preload("Assignments.User").Where("id = ?", task.ID).First(&task).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to load task"})
+		return
+	}
 
 	c.JSON(http.StatusCreated, task)
 }
@@ -169,7 +179,10 @@ func (tc *TaskController) UpdateTask(c *gin.Context) {
 	}
 
 	// Reload task with relationships
-	tc.DB.Preload("Creator").Preload("Assignments.User").First(&task, task.ID)
+	if err := tc.DB.Preload("Creator").Preload("Assignments.User").Where("id = ?", task.ID).First(&task).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to load task"})
+		return
+	}
 
 	c.JSON(http.StatusOK, task)
 }
@@ -222,7 +235,10 @@ func (tc *TaskController) ToggleTaskCompletion(c *gin.Context) {
 	}
 
 	// Reload task with relationships
-	tc.DB.Preload("Creator").Preload("Assignments.User").First(&task, task.ID)
+	if err := tc.DB.Preload("Creator").Preload("Assignments.User").Where("id = ?", task.ID).First(&task).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to load task"})
+		return
+	}
 
 	c.JSON(http.StatusOK, task)
 }
@@ -260,7 +276,10 @@ func (tc *TaskController) AssignTask(c *gin.Context) {
 	}
 
 	// Reload task with relationships
-	tc.DB.Preload("Creator").Preload("Assignments.User").First(&task, task.ID)
+	if err := tc.DB.Preload("Creator").Preload("Assignments.User").Where("id = ?", task.ID).First(&task).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to load task"})
+		return
+	}
 
 	c.JSON(http.StatusOK, task)
 }
@@ -283,7 +302,10 @@ func (tc *TaskController) UnassignTask(c *gin.Context) {
 	}
 
 	// Reload task with relationships
-	tc.DB.Preload("Creator").Preload("Assignments.User").First(&task, task.ID)
+	if err := tc.DB.Preload("Creator").Preload("Assignments.User").Where("id = ?", task.ID).First(&task).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to load task"})
+		return
+	}
 
 	c.JSON(http.StatusOK, task)
 }

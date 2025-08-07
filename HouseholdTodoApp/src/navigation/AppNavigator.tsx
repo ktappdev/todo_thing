@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { NavigationContainer } from '@react-navigation/native';
+import { NavigationContainer, useFocusEffect } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { View, ActivityIndicator } from 'react-native';
+import { View, ActivityIndicator, AppState } from 'react-native';
 
 import { User } from '../types';
 import { storage } from '../utils/storage';
@@ -19,19 +19,29 @@ const AppNavigator = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [user, setUser] = useState<User | null>(null);
 
+  const checkUserSession = async () => {
+    try {
+      const savedUser = await storage.getUser();
+      setUser(savedUser);
+    } catch (error) {
+      console.error('Error checking user session:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const checkUserSession = async () => {
-      try {
-        const savedUser = await storage.getUser();
-        setUser(savedUser);
-      } catch (error) {
-        console.error('Error checking user session:', error);
-      } finally {
-        setIsLoading(false);
+    checkUserSession();
+
+    // Listen for app state changes to re-check user when app becomes active
+    const handleAppStateChange = (nextAppState: string) => {
+      if (nextAppState === 'active') {
+        checkUserSession();
       }
     };
 
-    checkUserSession();
+    const subscription = AppState.addEventListener('change', handleAppStateChange);
+    return () => subscription?.remove();
   }, []);
 
   if (isLoading) {

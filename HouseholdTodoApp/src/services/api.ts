@@ -1,15 +1,14 @@
+import { API_BASE_URL } from '@env';
 import axios, { AxiosInstance } from 'axios';
 import { storage } from '../utils/storage';
 import { Household, User, Task, CreateHouseholdRequest, JoinHouseholdRequest, CreateTaskRequest, UpdateTaskRequest, AssignTaskRequest, ToggleTaskRequest } from '../types';
-
-const API_BASE_URL = 'http://localhost:8080';
 
 class ApiService {
   private api: AxiosInstance;
 
   constructor() {
     this.api = axios.create({
-      baseURL: API_BASE_URL + '/api',
+      baseURL: API_BASE_URL,
       headers: {
         'Content-Type': 'application/json',
       },
@@ -46,13 +45,16 @@ class ApiService {
   }
 
   // Household API
-  async createHousehold(data: CreateHouseholdRequest): Promise<Household> {
+  async createHousehold(data: CreateHouseholdRequest): Promise<{ household: Household; user: User }> {
     const response = await this.api.post('/households', data);
-    const { token, household } = response.data;
+    const { token, household, user } = response.data;
     if (token) {
       await storage.saveToken(token);
     }
-    return household;
+    if (user) {
+      await storage.saveUser(user);
+    }
+    return { household, user };
   }
 
   async getHouseholdByCode(code: string): Promise<Household> {
@@ -100,12 +102,14 @@ class ApiService {
     return response.data;
   }
 
-  async deleteTask(taskId: string): Promise<void> {
-    await this.api.delete(`/tasks/${taskId}`);
+  async deleteTask(taskId: string): Promise<{ message: string }> {
+    const response = await this.api.delete(`/tasks/${taskId}`);
+    return response.data;
   }
 
-  async toggleTaskCompletion(taskId: string, data: ToggleTaskRequest): Promise<Task> {
-    const response = await this.api.patch(`/tasks/${taskId}/toggle`, data);
+  async toggleTaskCompletion(taskId: string): Promise<Task> {
+    // Backend ignores request body and infers user from JWT
+    const response = await this.api.patch(`/tasks/${taskId}/toggle`, {});
     return response.data;
   }
 
@@ -125,13 +129,21 @@ class ApiService {
     return response.data;
   }
 
-  async leaveHousehold(userId: string): Promise<void> {
-    await this.api.delete(`/users/${userId}`);
+  async leaveHousehold(userId: string): Promise<{ message: string }> {
+    const response = await this.api.delete(`/users/${userId}`);
+    return response.data;
+  }
+
+  // Bootstrap API
+  async getMe(): Promise<{ user: User; household: Household }> {
+    const response = await this.api.get('/me');
+    return response.data;
   }
 
   // Health check
   async healthCheck(): Promise<{ status: string }> {
-    const response = await this.api.get('/health');
+    // Health endpoint is at root level, not under /api
+    const response = await axios.get(`${API_BASE_URL.replace('/api', '')}/health`);
     return response.data;
   }
 }

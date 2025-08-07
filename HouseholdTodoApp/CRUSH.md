@@ -8,7 +8,7 @@ Build & run
 Lint, format, types
 - Lint: npm run lint (eslint, config: .eslintrc.js extends @react-native)
 - Format: Prettier (.prettierrc.js: singleQuote, trailingComma=all, arrowParens=avoid)
-- Typecheck: tsc -p tsconfig.json (extends @react-native/typescript-config)
+- Typecheck: npx tsc -p tsconfig.json (extends @react-native/typescript-config)
 
 Tests (Jest, React Native preset)
 - All tests: npm test
@@ -24,16 +24,16 @@ Imports & modules
 
 Code style & naming
 - TS everywhere; avoid any; prefer explicit types and React.FC avoided
-- Components: PascalCase; files: PascalCase for components, kebab/snake not used; hooks: useX; vars camelCase; constants UPPER_SNAKE
+- Components: PascalCase; files: PascalCase for components; hooks: useX; vars camelCase; constants UPPER_SNAKE
 - Functions are pure where possible; keep files focused
 
 React Native patterns
-- Use React Navigation v7 APIs already installed
-- Prefer React Query for server state; AsyncStorage for local via src/utils/storage
+- Use React Navigation v7 APIs (installed)
+- React Query for server state; AsyncStorage for local via src/services/offline
 - Styles in src/styles/global.ts; avoid inline styles for shared tokens
 
 Error handling & logging
-- Wrap async/await with try/catch; return typed Result or throw; no silent catches
+- Wrap async/await with try/catch; no silent catches
 - Surface user errors with react-native-toast-message; log dev errors with console.warn/error only
 
 CI/local tips

@@ -7,6 +7,7 @@ import MembersScreen from '../screens/household/MembersScreen';
 import SettingsScreen from '../screens/household/SettingsScreen';
 import InviteScreen from '../screens/household/InviteScreen';
 import CreateTaskScreen from '../screens/tasks/CreateTaskScreen';
+import TaskDetailScreen from '../screens/tasks/TaskDetailScreen';
 
 export type TabParamList = {
   Tasks: undefined;
@@ -14,6 +15,7 @@ export type TabParamList = {
   Settings: undefined;
   Invite: undefined;
   CreateTask: undefined;
+  TaskDetail: { taskId: string };
 };
 
 const Tab = createBottomTabNavigator<TabParamList>();
@@ -77,6 +79,14 @@ const TabNavigator = () => {
         component={CreateTaskScreen}
         options={{
           title: 'Create Task',
+          tabBarButton: () => null, // Hide from tab bar
+        }}
+      />
+      <Tab.Screen
+        name="TaskDetail"
+        component={TaskDetailScreen}
+        options={{
+          title: 'Task Details',
           tabBarButton: () => null, // Hide from tab bar
         }}
       />

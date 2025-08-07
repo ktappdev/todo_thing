@@ -11,6 +11,7 @@ import {
   KeyboardAvoidingView,
   Platform 
 } from 'react-native';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { useForm, Controller } from 'react-hook-form';
 import { useNavigation } from '@react-navigation/native';
 
@@ -58,8 +59,6 @@ const CreateTaskScreen = () => {
       if (household && user) {
         const taskData = {
           ...data,
-          householdId: household.id,
-          creatorId: user.id,
           assignedTo: [], // Empty array for now, can be updated later
         };
         
@@ -78,9 +77,21 @@ const CreateTaskScreen = () => {
     }
   };
 
-  const handleDateSelect = (date: Date) => {
-    setValue('dueDate', date.toISOString());
-    setShowDatePicker(false);
+  const handleDateSelect = (event: any, selectedDate?: Date) => {
+    setShowDatePicker(Platform.OS === 'ios'); // Keep showing on iOS, hide on Android
+    if (selectedDate) {
+      setValue('dueDate', selectedDate.toISOString());
+    }
+  };
+
+  const showDatepicker = () => {
+    setShowDatePicker(true);
+  };
+
+  const getMinimumDate = () => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return today;
   };
 
   const formatDateDisplay = (dateString?: string) => {
@@ -173,44 +184,54 @@ const CreateTaskScreen = () => {
           <Text style={[styles.label, { marginTop: 20 }]}>Due Date</Text>
           <TouchableOpacity
             style={[styles.input, styles.dateInput]}
-            onPress={() => setShowDatePicker(true)}
+            onPress={showDatepicker}
           >
-            <Text style={styles.dateText}>
+            <Text style={[
+              styles.dateText,
+              !watchedDueDate && styles.placeholderText
+            ]}>
               {formatDateDisplay(watchedDueDate)}
             </Text>
           </TouchableOpacity>
 
+          {/* Quick date buttons */}
+          <View style={styles.quickDateButtons}>
+            <TouchableOpacity
+              style={styles.quickDateButton}
+              onPress={() => {
+                setValue('dueDate', undefined);
+              }}
+            >
+              <Text style={styles.quickDateButtonText}>No Due Date</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.quickDateButton, styles.todayButton]}
+              onPress={() => {
+                setValue('dueDate', new Date().toISOString());
+              }}
+            >
+              <Text style={styles.todayButtonText}>Today</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.quickDateButton, styles.tomorrowButton]}
+              onPress={() => {
+                const tomorrow = new Date();
+                tomorrow.setDate(tomorrow.getDate() + 1);
+                setValue('dueDate', tomorrow.toISOString());
+              }}
+            >
+              <Text style={styles.tomorrowButtonText}>Tomorrow</Text>
+            </TouchableOpacity>
+          </View>
+
           {showDatePicker && (
-            <View style={styles.datePickerContainer}>
-              <Text style={styles.datePickerTitle}>Select Due Date</Text>
-              <View style={styles.datePickerButtons}>
-                <TouchableOpacity
-                  style={styles.datePickerButton}
-                  onPress={() => {
-                    setValue('dueDate', undefined);
-                    setShowDatePicker(false);
-                  }}
-                >
-                  <Text style={styles.datePickerButtonText}>Clear</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.datePickerButton, styles.todayButton]}
-                  onPress={() => handleDateSelect(new Date())}
-                >
-                  <Text style={styles.todayButtonText}>Today</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.datePickerButton, styles.tomorrowButton]}
-                  onPress={() => {
-                    const tomorrow = new Date();
-                    tomorrow.setDate(tomorrow.getDate() + 1);
-                    handleDateSelect(tomorrow);
-                  }}
-                >
-                  <Text style={styles.tomorrowButtonText}>Tomorrow</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
+            <DateTimePicker
+              value={watchedDueDate ? new Date(watchedDueDate) : new Date()}
+              mode="date"
+              display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+              onChange={handleDateSelect}
+              minimumDate={getMinimumDate()}
+            />
           )}
         </View>
 
@@ -308,6 +329,30 @@ const styles = StyleSheet.create({
   dateText: {
     fontSize: 16,
     color: '#333',
+  },
+  placeholderText: {
+    color: '#999',
+  },
+  quickDateButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 12,
+    gap: 8,
+  },
+  quickDateButton: {
+    flex: 1,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 6,
+    alignItems: 'center',
+    backgroundColor: '#f0f0f0',
+    borderWidth: 1,
+    borderColor: '#ddd',
+  },
+  quickDateButtonText: {
+    fontSize: 12,
+    color: '#666',
+    fontWeight: '600',
   },
   datePickerContainer: {
     backgroundColor: '#fff',
