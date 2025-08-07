@@ -51,6 +51,8 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
     // noop
   }, []);
   
+  console.warn('🔌 WebSocketProvider: Initializing WebSocket with householdId:', meData?.household?.id);
+  
   const websocket = useWebSocket({
     householdId: meData?.household?.id,
     autoConnect: true,
@@ -71,7 +73,7 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
         console.log('App going to background - disconnecting WebSocket');
         websocket.disconnect();
       }
-      setAppState(nextAppState);
+      setAppState(nextAppState as any);
     };
 
     const subscription = AppState.addEventListener('change', handleAppStateChange);
@@ -81,6 +83,7 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
   // Join household room when user/household data changes
   useEffect(() => {
     if (meData?.household?.id && websocket.isConnected) {
+      console.warn('🏠 WebSocketProvider: Joining household room:', meData.household.id);
       websocket.joinHousehold(meData.household.id);
     }
   }, [meData?.household?.id, websocket]);

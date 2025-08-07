@@ -117,7 +117,8 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
     };
 
     const taskCompletedListener = (data: { task: Task; householdId: string; completedBy: User }) => {
-      console.log('WebSocket: Task completed', data);
+      console.warn('🔥 WebSocket: Task completed', data);
+      console.warn('🔥 Updating cache for householdId:', data.householdId);
       
       // Update cache directly
       queryClient.setQueryData(['tasks', data.householdId], (oldData: Task[] | undefined) => {

@@ -8,6 +8,7 @@ import { storage } from '../utils/storage';
 import OnboardingNavigator from './OnboardingNavigator';
 import TabNavigator from './TabNavigator';
 import { QueryProvider } from '../providers/QueryProvider';
+import { WebSocketProvider } from '../components/WebSocketProvider';
 
 export type RootStackParamList = {
   Onboarding: undefined;
@@ -55,7 +56,8 @@ const AppNavigator = () => {
 
   return (
     <QueryProvider>
-      <NavigationContainer>
+      <WebSocketProvider>
+        <NavigationContainer>
         <Stack.Navigator screenOptions={{ headerShown: false }}>
           {user ? (
             <Stack.Screen name="Main" component={TabNavigator} />
@@ -63,7 +65,8 @@ const AppNavigator = () => {
             <Stack.Screen name="Onboarding" component={OnboardingNavigator} />
           )}
         </Stack.Navigator>
-      </NavigationContainer>
+        </NavigationContainer>
+      </WebSocketProvider>
     </QueryProvider>
   );
 };

@@ -31,10 +31,15 @@ interface FilterState {
 }
 
 const TaskListScreen = () => {
+  console.warn('🚀 TaskListScreen component mounted/rendered');
   const navigation = useNavigation<BottomTabNavigationProp<TabParamList>>();
   const { data: meData } = useMe();
   const householdId = meData?.household?.id;
   const { data: tasksData = [], refetch, isFetching } = useTasks(householdId ?? '');
+
+  // Debug logging - using console.warn to make it more visible
+  console.warn('🔍 TaskListScreen render:', { householdId, tasksDataLength: tasksData.length, isFetching });
+  console.warn('🔍 meData:', meData);
 
   // Local UI state
   const [filteredTasks, setFilteredTasks] = useState<Task[]>([]);

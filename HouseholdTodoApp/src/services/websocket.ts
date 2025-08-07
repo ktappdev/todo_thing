@@ -1,4 +1,3 @@
-import { io, Socket } from 'socket.io-client';
 import { API_BASE_URL } from '@env';
 import { storage } from '../utils/storage';
 import { Task, Household, User } from '../types';
@@ -28,8 +27,13 @@ export interface SocketEvents {
   'connect_error': (error: Error) => void;
 }
 
+interface WebSocketMessage {
+  type: string;
+  data?: any;
+}
+
 class WebSocketService {
-  private socket: Socket | null = null;
+  private socket: WebSocket | null = null;
   private reconnectAttempts = 0;
   private maxReconnectAttempts = 5;
   private reconnectDelay = 1000;
@@ -38,207 +42,180 @@ class WebSocketService {
 
   constructor() {
     // Initialize event listeners map
-    Object.keys({} as SocketEvents).forEach(event => {
-      this.eventListeners.set(event as keyof SocketEvents, []);
+    const events: (keyof SocketEvents)[] = [
+      'task:created', 'task:updated', 'task:deleted', 'task:completed', 'task:assigned', 'task:unassigned',
+      'household:updated', 'household:member_joined', 'household:member_left', 'household:invite_code_refreshed',
+      'user:updated', 'connect', 'disconnect', 'reconnect', 'connect_error'
+    ];
+    
+    events.forEach(event => {
+      this.eventListeners.set(event, []);
     });
   }
 
   async connect(): Promise<void> {
-    if (this.socket?.connected || this.isConnecting) {
+    if (this.socket?.readyState === WebSocket.OPEN || this.isConnecting) {
       return;
     }
 
     this.isConnecting = true;
-
+    
     try {
       const token = await storage.getToken();
       if (!token) {
-        console.warn('No token available for WebSocket connection');
-        this.isConnecting = false;
-        return;
+        throw new Error('No authentication token found');
       }
 
-      // Convert HTTP URL to WebSocket URL
-      const wsUrl = API_BASE_URL.replace(/^https?:/, 'ws:').replace(/^http:/, 'ws:');
+      // Create native WebSocket connection to /ws endpoint (remove /api prefix)
+      const baseUrl = API_BASE_URL.replace('/api', '').replace('http', 'ws');
+      const wsUrl = baseUrl + '/ws?token=' + encodeURIComponent(token);
+      console.warn('🔌 Connecting to WebSocket:', wsUrl);
       
-      this.socket = io(wsUrl, {
-        auth: {
-          token
-        },
-        transports: ['websocket'],
-        reconnection: true,
-        reconnectionAttempts: this.maxReconnectAttempts,
-        reconnectionDelay: this.reconnectDelay,
-        timeout: 10000,
-      });
-
-      this.setupEventHandlers();
-      this.isConnecting = false;
-
+      this.socket = new WebSocket(wsUrl);
+      this.setupEventListeners();
+      
     } catch (error) {
-      console.error('Error connecting to WebSocket:', error);
+      console.error('WebSocket connection error:', error);
       this.isConnecting = false;
-      throw error;
+      this.emitToListeners('connect_error', error as Error);
+      
+      // Retry connection
+      if (this.reconnectAttempts < this.maxReconnectAttempts) {
+        this.reconnectAttempts++;
+        setTimeout(() => this.connect(), this.reconnectDelay * this.reconnectAttempts);
+      }
     }
   }
 
-  private setupEventHandlers(): void {
+  private setupEventListeners(): void {
     if (!this.socket) return;
 
-    // Connection events
-    this.socket.on('connect', () => {
-      console.log('WebSocket connected');
+    // Connection opened
+    this.socket.onopen = () => {
+      console.warn('🔥 WebSocket connected');
+      this.isConnecting = false;
       this.reconnectAttempts = 0;
       this.emitToListeners('connect');
-    });
+    };
 
-    this.socket.on('disconnect', (reason: string) => {
-      console.log('WebSocket disconnected:', reason);
-      this.emitToListeners('disconnect', reason);
-    });
-
-    this.socket.on('reconnect', () => {
-      console.log('WebSocket reconnected');
-      this.reconnectAttempts = 0;
-      this.emitToListeners('reconnect');
-    });
-
-    this.socket.on('connect_error', (error: Error) => {
-      console.error('WebSocket connection error:', error);
-      this.reconnectAttempts++;
-      this.emitToListeners('connect_error', error);
-    });
-
-    // Task events
-    this.socket.on('task:created', (data) => {
-      console.log('Task created:', data);
-      this.emitToListeners('task:created', data);
-    });
-
-    this.socket.on('task:updated', (data) => {
-      console.log('Task updated:', data);
-      this.emitToListeners('task:updated', data);
-    });
-
-    this.socket.on('task:deleted', (data) => {
-      console.log('Task deleted:', data);
-      this.emitToListeners('task:deleted', data);
-    });
-
-    this.socket.on('task:completed', (data) => {
-      console.log('Task completed:', data);
-      this.emitToListeners('task:completed', data);
-    });
-
-    this.socket.on('task:assigned', (data) => {
-      console.log('Task assigned:', data);
-      this.emitToListeners('task:assigned', data);
-    });
-
-    this.socket.on('task:unassigned', (data) => {
-      console.log('Task unassigned:', data);
-      this.emitToListeners('task:unassigned', data);
-    });
-
-    // Household events
-    this.socket.on('household:updated', (data) => {
-      console.log('Household updated:', data);
-      this.emitToListeners('household:updated', data);
-    });
-
-    this.socket.on('household:member_joined', (data) => {
-      console.log('Household member joined:', data);
-      this.emitToListeners('household:member_joined', data);
-    });
-
-    this.socket.on('household:member_left', (data) => {
-      console.log('Household member left:', data);
-      this.emitToListeners('household:member_left', data);
-    });
-
-    this.socket.on('household:invite_code_refreshed', (data) => {
-      console.log('Household invite code refreshed:', data);
-      this.emitToListeners('household:invite_code_refreshed', data);
-    });
-
-    // User events
-    this.socket.on('user:updated', (data) => {
-      console.log('User updated:', data);
-      this.emitToListeners('user:updated', data);
-    });
-  }
-
-  private emitToListeners<K extends keyof SocketEvents>(
-    event: K, 
-    ...args: Parameters<SocketEvents[K]>
-  ): void {
-    const listeners = this.eventListeners.get(event) || [];
-    listeners.forEach(listener => {
-      try {
-        listener(...args);
-      } catch (error) {
-        console.error(`Error in WebSocket listener for ${event}:`, error);
+    // Connection closed
+    this.socket.onclose = (event) => {
+      console.warn('🔥 WebSocket disconnected:', event.reason || 'Unknown reason');
+      this.emitToListeners('disconnect', event.reason || 'Connection closed');
+      
+      // Auto-reconnect if not intentionally closed
+      if (event.code !== 1000 && this.reconnectAttempts < this.maxReconnectAttempts) {
+        this.reconnectAttempts++;
+        setTimeout(() => this.connect(), this.reconnectDelay * this.reconnectAttempts);
       }
-    });
+    };
+
+    // Error occurred
+    this.socket.onerror = (error) => {
+      console.error('WebSocket error:', error);
+      this.emitToListeners('connect_error', new Error('WebSocket error'));
+    };
+
+    // Message received
+    this.socket.onmessage = (event) => {
+      try {
+        const message: WebSocketMessage = JSON.parse(event.data);
+        console.warn('🔥 WebSocket message received:', message);
+        
+        // Emit the event to listeners
+        if (message.type && this.eventListeners.has(message.type as keyof SocketEvents)) {
+          this.emitToListeners(message.type as keyof SocketEvents, message.data);
+        }
+      } catch (error) {
+        console.error('Error parsing WebSocket message:', error);
+      }
+    };
   }
 
-  // Public method to add event listeners
+  disconnect(): void {
+    if (this.socket) {
+      this.socket.close(1000, 'Client disconnect');
+      this.socket = null;
+    }
+  }
+
+  get isConnected(): boolean {
+    return this.socket?.readyState === WebSocket.OPEN;
+  }
+
+  get status(): 'connected' | 'connecting' | 'disconnected' | 'error' {
+    if (!this.socket) return 'disconnected';
+    
+    switch (this.socket.readyState) {
+      case WebSocket.CONNECTING:
+        return 'connecting';
+      case WebSocket.OPEN:
+        return 'connected';
+      case WebSocket.CLOSING:
+      case WebSocket.CLOSED:
+        return 'disconnected';
+      default:
+        return 'error';
+    }
+  }
+
+  async joinHousehold(householdId: string): Promise<void> {
+    if (!this.isConnected) {
+      console.warn('Cannot join household: WebSocket not connected');
+      return;
+    }
+
+    const message: WebSocketMessage = {
+      type: 'join:household',
+      data: { householdId }
+    };
+
+    this.socket?.send(JSON.stringify(message));
+    console.warn('🏠 Sent join household message:', householdId);
+  }
+
+  leaveHousehold(householdId: string): void {
+    if (!this.isConnected) {
+      console.warn('Cannot leave household: WebSocket not connected');
+      return;
+    }
+
+    const message: WebSocketMessage = {
+      type: 'leave:household',
+      data: { householdId }
+    };
+
+    this.socket?.send(JSON.stringify(message));
+    console.warn('🏠 Sent leave household message:', householdId);
+  }
+
   on<K extends keyof SocketEvents>(event: K, listener: SocketEvents[K]): void {
     const listeners = this.eventListeners.get(event) || [];
-    listeners.push(listener);
+    listeners.push(listener as Function);
     this.eventListeners.set(event, listeners);
   }
 
-  // Public method to remove event listeners
   off<K extends keyof SocketEvents>(event: K, listener: SocketEvents[K]): void {
     const listeners = this.eventListeners.get(event) || [];
-    const index = listeners.indexOf(listener);
+    const index = listeners.indexOf(listener as Function);
     if (index > -1) {
       listeners.splice(index, 1);
       this.eventListeners.set(event, listeners);
     }
   }
 
-  // Join a household room for receiving updates
-  async joinHousehold(householdId: string): Promise<void> {
-    if (!this.socket?.connected) {
-      await this.connect();
-    }
-    
-    if (this.socket?.connected) {
-      this.socket.emit('join:household', { householdId });
-      console.log('Joined household room:', householdId);
-    }
-  }
-
-  // Leave a household room
-  leaveHousehold(householdId: string): void {
-    if (this.socket?.connected) {
-      this.socket.emit('leave:household', { householdId });
-      console.log('Left household room:', householdId);
-    }
-  }
-
-  disconnect(): void {
-    if (this.socket) {
-      this.socket.disconnect();
-      this.socket = null;
-    }
-    this.reconnectAttempts = 0;
-    this.isConnecting = false;
-  }
-
-  isConnected(): boolean {
-    return this.socket?.connected ?? false;
-  }
-
-  // Get connection status
-  getStatus(): 'connected' | 'connecting' | 'disconnected' | 'error' {
-    if (this.isConnecting) return 'connecting';
-    if (this.socket?.connected) return 'connected';
-    if (this.reconnectAttempts >= this.maxReconnectAttempts) return 'error';
-    return 'disconnected';
+  private emitToListeners<K extends keyof SocketEvents>(event: K, ...args: any[]): void {
+    const listeners = this.eventListeners.get(event) || [];
+    listeners.forEach(listener => {
+      try {
+        listener(...args);
+      } catch (error) {
+        console.error(`Error in WebSocket event listener for ${event}:`, error);
+      }
+    });
   }
 }
 
-export default new WebSocketService();
+// Export singleton instance
+const websocketService = new WebSocketService();
+export default websocketService;
