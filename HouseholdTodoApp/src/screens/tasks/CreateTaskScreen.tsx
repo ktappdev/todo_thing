@@ -14,6 +14,7 @@ import {
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useForm, Controller } from 'react-hook-form';
 import { useNavigation } from '@react-navigation/native';
+import { scheduleTaskReminder, ReminderPreset } from '../../notifications/taskReminders';
 
 import { } from '../../types';
 import apiService from '../../services/api';
@@ -24,6 +25,7 @@ interface CreateTaskFormData {
   description: string;
   category: 'CHORES' | 'SHOPPING' | 'WORK' | 'GENERAL';
   dueDate?: string;
+  reminderPreset: ReminderPreset;
 }
 
 const CreateTaskScreen = () => {
@@ -44,11 +46,13 @@ const CreateTaskScreen = () => {
       description: '',
       category: 'GENERAL',
       dueDate: '',
+      reminderPreset: 'NONE',
     },
   });
 
   const watchedCategory = watch('category');
   const watchedDueDate = watch('dueDate');
+  const watchedReminder = watch('reminderPreset');
 
   const onSubmit = async (data: CreateTaskFormData) => {
     setIsLoading(true);
@@ -57,12 +61,19 @@ const CreateTaskScreen = () => {
       const user = await storage.getUser();
       
       if (household && user) {
+        const { reminderPreset, ...payload } = data;
         const taskData = {
-          ...data,
+          ...payload,
           assignedTo: [], // Empty array for now, can be updated later
         };
         
-        await apiService.createTask(household.id, taskData);
+        const created = await apiService.createTask(household.id, taskData);
+          // Schedule local reminder
+          try {
+            await scheduleTaskReminder(created.id, created.title, created.dueDate, watchedReminder);
+          } catch (e) {
+            console.warn('Failed to schedule reminder', e);
+          }
         
         // Navigate back to task list
         navigation.goBack();
@@ -176,6 +187,22 @@ const CreateTaskScreen = () => {
                   watchedCategory === category && styles.selectedCategoryText
                 ]}>
                   {category}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          <Text style={[styles.label, { marginTop: 20 }]}>Reminder</Text>
+          <View style={styles.reminderContainer}>
+            {(['NONE','AT_DUE','5M_BEFORE','1H_BEFORE','1D_BEFORE'] as ReminderPreset[]).map((preset) => (
+              <TouchableOpacity
+                key={preset}
+                style={[styles.reminderButton,
+                  watchedReminder===preset && styles.selectedReminderButton]}
+                onPress={() => setValue('reminderPreset', preset)}
+              >
+                <Text style={[styles.reminderText,
+                  watchedReminder===preset && styles.selectedReminderText]}> {preset==='NONE'?'None':preset.replace('_',' ').replace('BEFORE','')}
                 </Text>
               </TouchableOpacity>
             ))}
@@ -401,6 +428,31 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontWeight: 'bold',
   },
+  reminderContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 8,
+  },
+  reminderButton: {
+    borderWidth: 1,
+    borderColor: '#6200EE',
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 16,
+  },
+  selectedReminderButton: {
+    backgroundColor: '#6200EE',
+  },
+  reminderText: {
+    fontSize: 12,
+    color: '#6200EE',
+    fontWeight: '600',
+  },
+  selectedReminderText: {
+    color: '#fff',
+  },
+
   buttonContainer: {
     marginTop: 30,
     marginBottom: 20,

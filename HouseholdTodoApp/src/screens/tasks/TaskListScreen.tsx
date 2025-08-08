@@ -17,6 +17,7 @@ import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 
 import { Task, TaskCategory } from '../../types';
 import { useMe, useTasks } from '../../hooks/useApi';
+import useTaskReminders from '../../hooks/useTaskReminders';
 
 
 
@@ -36,6 +37,9 @@ const TaskListScreen = () => {
   const { data: meData } = useMe();
   const householdId = meData?.household?.id;
   const { data: tasksData = [], refetch, isFetching } = useTasks(householdId ?? '');
+
+  // Sync local notifications for tasks
+  useTaskReminders(tasksData);
 
   // Debug logging - using console.warn to make it more visible
   console.warn('🔍 TaskListScreen render:', { householdId, tasksDataLength: tasksData.length, isFetching });

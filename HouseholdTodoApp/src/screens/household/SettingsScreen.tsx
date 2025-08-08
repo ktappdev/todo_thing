@@ -8,6 +8,7 @@ import {
   Switch 
 } from 'react-native';
 import { resetTo } from '../../navigation/navigationRef';
+import { scheduleLocalNotification, requestNotificationPermission } from '../../notifications/notifications';
 
 import { storage } from '../../utils/storage';
 import apiService from '../../services/api';
@@ -30,6 +31,34 @@ const SettingsScreen = () => {
       }
     } catch (error) {
       console.error('Failed to load household info:', error);
+    }
+  };
+
+  const handleToggleNotifications = async (value: boolean) => {
+    setNotificationsEnabled(value);
+    if (value) {
+      const granted = await requestNotificationPermission();
+      if (!granted) {
+        Alert.alert('Permission needed', 'Enable notifications in system settings.');
+        setNotificationsEnabled(false);
+      }
+    }
+  };
+
+  const handleSendTestNow = async () => {
+    try {
+      await scheduleLocalNotification(0);
+    } catch (e: any) {
+      Alert.alert('Notification error', e.message || 'Could not send test');
+    }
+  };
+
+  const handleSendTest10s = async () => {
+    try {
+      await scheduleLocalNotification(10);
+      Alert.alert('Scheduled', 'Notification will appear in ~10 seconds');
+    } catch (e: any) {
+      Alert.alert('Notification error', e.message || 'Could not schedule');
     }
   };
 
@@ -112,11 +141,17 @@ const SettingsScreen = () => {
           <Text style={styles.settingLabel}>Enable Notifications</Text>
           <Switch
             value={notificationsEnabled}
-            onValueChange={setNotificationsEnabled}
+            onValueChange={handleToggleNotifications}
             trackColor={{ false: '#767577', true: '#6200EE' }}
             thumbColor={notificationsEnabled ? '#f4f3f4' : '#f4f3f4'}
           />
         </View>
+        <TouchableOpacity style={styles.testButton} onPress={handleSendTestNow}>
+          <Text style={styles.testButtonText}>Send Test Now</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.testButtonOutline} onPress={handleSendTest10s}>
+          <Text style={styles.testButtonOutlineText}>Schedule Test (10s)</Text>
+        </TouchableOpacity>
       </View>
 
       <View style={styles.section}>
@@ -194,6 +229,32 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: 'bold',
+  },
+  testButton: {
+    backgroundColor: '#6200EE',
+    padding: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginTop: 12,
+  },
+  testButtonText: {
+    color: '#fff',
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  testButtonOutline: {
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#6200EE',
+    padding: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  testButtonOutlineText: {
+    color: '#6200EE',
+    fontSize: 15,
+    fontWeight: '600',
   },
 });
 
