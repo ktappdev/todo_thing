@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"log"
 	"net/http"
 	"time"
 
@@ -72,9 +73,18 @@ func (uc *UserController) LeaveHousehold(c *gin.Context) {
 		return
 	}
 
+	// First, find the user by ID only to check if they exist
 	var user models.User
-	if err := uc.DB.Where("id = ? AND household_id = ?", userID, householdID).First(&user).Error; err != nil {
+	if err := uc.DB.Where("id = ?", userID).First(&user).Error; err != nil {
+		log.Printf("User lookup failed for ID %s: %v", userID, err)
 		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
+		return
+	}
+
+	// Check if the user's household_id matches the authenticated user's household_id
+	if user.HouseholdID != householdID {
+		log.Printf("Household mismatch: user.HouseholdID=%s, expected=%s", user.HouseholdID, householdID)
+		c.JSON(http.StatusForbidden, gin.H{"error": "User does not belong to this household"})
 		return
 	}
 

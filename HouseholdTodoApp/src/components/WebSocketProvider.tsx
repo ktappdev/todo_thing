@@ -29,6 +29,7 @@ interface WebSocketProviderProps {
 export function WebSocketProvider({ children }: WebSocketProviderProps) {
   const [appState, setAppState] = useState(AppState.currentState);
   const { data: meData } = useMe();
+  const householdId = meData?.household?.id;
   
   // Stable callback functions
   const onTaskCreated = useCallback((_data: any) => {
@@ -51,11 +52,13 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
     // noop
   }, []);
   
-  console.warn('🔌 WebSocketProvider: Initializing WebSocket with householdId:', meData?.household?.id);
+  if (householdId) {
+    console.warn('🔌 WebSocketProvider: Initializing WebSocket with householdId:', householdId);
+  }
   
   const websocket = useWebSocket({
-    householdId: meData?.household?.id,
-    autoConnect: true,
+    householdId,
+    autoConnect: !!householdId,
     onTaskCreated,
     onTaskUpdated,
     onTaskCompleted,
@@ -67,8 +70,10 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
   useEffect(() => {
     const handleAppStateChange = (nextAppState: string) => {
       if (appState.match(/inactive|background/) && nextAppState === 'active') {
-        console.log('App came to foreground - reconnecting WebSocket');
-        websocket.connect();
+        console.log('App came to foreground - attempting WebSocket reconnect');
+        if (householdId) {
+          websocket.connect();
+        }
       } else if (nextAppState.match(/inactive|background/)) {
         console.log('App going to background - disconnecting WebSocket');
         websocket.disconnect();
@@ -78,15 +83,15 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
 
     const subscription = AppState.addEventListener('change', handleAppStateChange);
     return () => subscription?.remove();
-  }, [appState, websocket]);
+  }, [appState, websocket, householdId]);
 
   // Join household room when user/household data changes
   useEffect(() => {
-    if (meData?.household?.id && websocket.isConnected) {
-      console.warn('🏠 WebSocketProvider: Joining household room:', meData.household.id);
-      websocket.joinHousehold(meData.household.id);
+    if (householdId && websocket.isConnected) {
+      console.warn('🏠 WebSocketProvider: Joining household room:', householdId);
+      websocket.joinHousehold(householdId);
     }
-  }, [meData?.household?.id, websocket]);
+  }, [householdId, websocket]);
 
   const contextValue: WebSocketContextType = useMemo(() => ({
     isConnected: websocket.isConnected,

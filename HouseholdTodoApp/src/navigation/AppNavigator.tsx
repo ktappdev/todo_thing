@@ -9,6 +9,7 @@ import OnboardingNavigator from './OnboardingNavigator';
 import TabNavigator from './TabNavigator';
 import { QueryProvider } from '../providers/QueryProvider';
 import { WebSocketProvider } from '../components/WebSocketProvider';
+import { navigationRef } from './navigationRef';
 
 export type RootStackParamList = {
   Onboarding: undefined;
@@ -57,13 +58,13 @@ const AppNavigator = () => {
   return (
     <QueryProvider>
       <WebSocketProvider>
-        <NavigationContainer>
-        <Stack.Navigator screenOptions={{ headerShown: false }}>
-          {user ? (
-            <Stack.Screen name="Main" component={TabNavigator} />
-          ) : (
-            <Stack.Screen name="Onboarding" component={OnboardingNavigator} />
-          )}
+        <NavigationContainer ref={navigationRef}>
+        <Stack.Navigator
+          initialRouteName={user ? 'Main' : 'Onboarding'}
+          screenOptions={{ headerShown: false }}
+        >
+          <Stack.Screen name="Onboarding" component={OnboardingNavigator} />
+          <Stack.Screen name="Main" component={TabNavigator} />
         </Stack.Navigator>
         </NavigationContainer>
       </WebSocketProvider>

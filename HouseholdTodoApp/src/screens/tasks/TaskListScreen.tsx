@@ -64,6 +64,14 @@ const TaskListScreen = () => {
     }, [householdId, refetch])
   );
 
+  // Fix race condition: refetch tasks when householdId becomes available
+  useEffect(() => {
+    if (householdId && tasksData.length === 0 && !isFetching) {
+      console.warn('🔧 Fixing race condition: refetching tasks when householdId becomes available');
+      refetch();
+    }
+  }, [householdId, tasksData.length, isFetching, refetch]);
+
   const toggleTaskCompletion = async (_taskId: string) => {
     // handled in other screen; kept for parity
   };

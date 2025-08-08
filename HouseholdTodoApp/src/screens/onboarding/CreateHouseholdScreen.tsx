@@ -11,8 +11,8 @@ import {
 import { useForm, Controller } from 'react-hook-form';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { CommonActions } from '@react-navigation/native';
 import { RootStackParamList } from '../../navigation/AppNavigator';
+import { resetTo } from '../../navigation/navigationRef';
 
 import apiService from '../../services/api';
 import { storage } from '../../utils/storage';
@@ -60,13 +60,8 @@ const CreateHouseholdScreen = () => {
       await storage.saveHousehold(household);
       // User is already saved in the API service
       
-      // Reset navigation to the main app - using dispatch to reset the root navigator
-      navigation.dispatch(
-        CommonActions.reset({
-          index: 0,
-          routes: [{ name: 'Main' }],
-        })
-      );
+      // Reset navigation to the main app on the ROOT navigator
+      resetTo('Main');
     } catch (error: any) {
       Alert.alert(
         'Error',

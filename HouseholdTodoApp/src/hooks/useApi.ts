@@ -48,6 +48,7 @@ export function useTasks(householdId: string) {
     queryFn: () => apiService.getHouseholdTasks(householdId),
     enabled: !!householdId,
     staleTime: 30 * 1000, // 30 seconds
+    retry: 1,
   });
 }
 

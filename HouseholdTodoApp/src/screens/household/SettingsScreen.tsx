@@ -7,16 +7,12 @@ import {
   Alert,
   Switch 
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
-import { StackNavigationProp } from '@react-navigation/stack';
-import { CommonActions } from '@react-navigation/native';
-import { RootStackParamList } from '../../navigation/AppNavigator';
+import { resetTo } from '../../navigation/navigationRef';
 
 import { storage } from '../../utils/storage';
 import apiService from '../../services/api';
 
 const SettingsScreen = () => {
-  const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [householdName, setHouseholdName] = useState('');
   const [inviteCode, setInviteCode] = useState('');
@@ -56,12 +52,7 @@ const SettingsScreen = () => {
                 await apiService.leaveHousehold(user.id);
                 await storage.removeUser();
                 await storage.removeHousehold();
-                navigation.dispatch(
-                  CommonActions.reset({
-                    index: 0,
-                    routes: [{ name: 'Onboarding' }],
-                  })
-                );
+                resetTo('Onboarding');
               }
             } catch (error: any) {
               Alert.alert(
